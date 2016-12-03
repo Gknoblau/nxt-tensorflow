@@ -1,0 +1,117 @@
+//Anti-SLAM v16_final
+//Convention: Left and Right refer to the SENSOR/MOTOR, NOT THE WIRING.
+//See the wiring diagrams in Chapter 9.
+
+#define LeftMotor OUT_B
+#define RightMotor OUT_C
+#define LeftUltra S2
+#define RightUltra S3
+#define LeftMic S1
+#define RightMic S4
+
+int Sensitivity = 1; //Level 0 connection: Ultrasonic sensitivity. Default 1.
+int LMic = 0; //Impact of the left eye on movement. Zero at this level.
+int RMic = 0; //Impact of the right eye on movement. Zero at this level.
+int ultraSensitivity = 60;
+int micSensitivity = 40; //The strength of the mic sensors in percent.
+int RightSpeed = 0;
+int LeftSpeed = 0;
+
+/*====="Level -1": Integration==================================================
+Each of the terms (Sensitivity, Reverse, LeftBias, RightBias) is part of a later
+level's connection to the motors. See the main task to see their defaults.
+On its own, this task does nothing. However, it will function at every level
+without modification.
+*/
+
+task Drive(){
+  while(true){
+    //"Hearing/255" converts from responsive raw ultrasonic to % motor speed.d
+    RightSpeed = ((SensorUS(RightUltra)*(ultraSensitivity)/255)+RMic) * (-1);
+    LeftSpeed = ((SensorUS(LeftUltra)*(ultraSensitivity)/255)+LMic) * (-1);
+  }
+}
+
+/*=====Level 0: Drive===========================================================
+Feed the distance from each ultrasonic sensor to the motor. The robot is wired
+contralaterally, and thus avoids all walls equally. As a result, when it reaches
+a corner, it slows down and ends up stopping in the corner "for free".
+*/
+
+task DriveRight(){
+  while(true){
+    OnFwd(RightMotor, RightSpeed);
+  }
+}
+
+task DriveLeft(){
+  while(true){
+    OnFwd(LeftMotor, LeftSpeed);
+  }
+}
+
+
+task Hear(){
+//Sets the strength of the robot's visual response to a scaled percentage.
+  while(true){
+    LMic = Sensor(LeftMic)*micSensitivity/100;
+    RMic = Sensor(RightMic)*micSensitivity/100;
+  }
+}
+
+/*=====Level 4: Logging=========================================================
+*/
+byte handle;
+long fileSize = 10000;
+short bytesWritten;
+string write;
+string comma = ",";
+
+task Logger(){
+  DeleteFile("Example.txt");
+  CreateFile("Example.txt", fileSize, handle);
+  while(true){
+    Wait(250);
+    int left_mic = Sensor(LeftMic);
+    int right_mic = Sensor(RightMic);
+    int left_ultra = SensorUS(LeftUltra);
+    int right_ultra = SensorUS(RightUltra);
+
+
+    string left_eye_str = NumToStr(left_mic);
+    string right_eye_str = NumToStr(right_mic);
+    string left_ear_str = NumToStr(left_ultra);
+    string right_ear_str = NumToStr(right_ultra);
+    string left_motor_str = NumToStr(LeftSpeed);
+    string right_motor_str = NumToStr(RightSpeed);
+
+    write = StrCat(left_eye_str, comma, right_eye_str, comma, left_ear_str, comma, right_ear_str, comma, left_motor_str, comma,  right_motor_str);
+    WriteLnString(handle, write, bytesWritten);
+  }
+  CloseFile(handle);
+}
+
+
+
+//=====Main Task================================================================
+
+task main(){
+  //Set up ultrasonic sensors and speed calculation weights.
+  SetSensorLowspeed(LeftUltra);
+  SetSensorMode(LeftUltra, SENSOR_MODE_RAW);
+
+  SetSensorLowspeed(RightUltra);
+  SetSensorMode(RightUltra, SENSOR_MODE_RAW);
+
+  SetSensorType(LeftMic, SENSOR_TYPE_SOUND_DB);
+  SetSensorMode(LeftMic, SENSOR_MODE_PERCENT);
+
+  SetSensorType(RightMic, SENSOR_TYPE_SOUND_DB);
+  SetSensorMode(RightMic, SENSOR_MODE_PERCENT);
+
+  start Drive;
+  start DriveRight;
+  start DriveLeft;
+  start Hear;
+  start Logger;
+}
