@@ -1,6 +1,7 @@
-//Anti-SLAM v16_final
+//Authour: Greg Knoblauch
+//NXC Code for the training of a neural network
 //Convention: Left and Right refer to the SENSOR/MOTOR, NOT THE WIRING.
-//See the wiring diagrams in Chapter 9.
+
 
 #define LeftMotor OUT_B
 #define RightMotor OUT_C
@@ -10,15 +11,16 @@
 #define RightMic S4
 
 int Sensitivity = 1; //Level 0 connection: Ultrasonic sensitivity. Default 1.
-int LMic = 0; //Impact of the left eye on movement. Zero at this level.
-int RMic = 0; //Impact of the right eye on movement. Zero at this level.
-int ultraSensitivity = 60;
-int micSensitivity = 40; //The strength of the mic sensors in percent.
-int RightSpeed = 0;
-int LeftSpeed = 0;
+int LMic = 0; //Impact of the left microphone
+int RMic = 0; //Impact of the right microhone
+int ultraSensitivity = 60; // Pecentage of ultra reading that affects the motor speed
+int micSensitivity = 40; // Pecentage of mic reading that affects the motor speed
+int RightSpeed = 0; // Initalization of value for the speed of the right motor
+int LeftSpeed = 0;// Initalization of value for the speed of the left motor
+
 
 /*====="Level -1": Integration==================================================
-Each of the terms (Sensitivity, Reverse, LeftBias, RightBias) is part of a later
+Each of the terms (ultraSensitivity, mic) is part of a later
 level's connection to the motors. See the main task to see their defaults.
 On its own, this task does nothing. However, it will function at every level
 without modification.
@@ -50,16 +52,20 @@ task DriveLeft(){
   }
 }
 
+/*=====Level 1: Hear===========================================================
+Reads the decible level from both microphones. Decible devel are read in values 1-100.
+They are multiplied by the mic sensitivity value then divided by 100 to get a vale from 0-1.
+*/
 
-task Hear(){
-//Sets the strength of the robot's visual response to a scaled percentage.
+task Hear(){ 
   while(true){
     LMic = Sensor(LeftMic)*micSensitivity/100;
     RMic = Sensor(RightMic)*micSensitivity/100;
   }
 }
 
-/*=====Level 4: Logging=========================================================
+/*=====Level 2: Logging=========================================================
+Simple Logginf Function to write all inputs and outputs to file. 
 */
 byte handle;
 long fileSize = 10000;
